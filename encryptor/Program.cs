@@ -3,24 +3,24 @@ using System.Collections.Generic;
 using System.IO;
 using System.Security.Cryptography;
 
-namespace encryptFile
+namespace encryptor
 {
 	/// <summary>
-	/// Program Class
+	/// encryptor Class
 	/// </summary>
-	internal class Program
+	internal class Encryptor
 	{
 		/// <summary>
-        /// 
+        /// First arguments
         /// </summary>
-		private static Dictionary<string, string> argConst = new Dictionary<string, string>
+		private static readonly Dictionary<string, string> argConst = new Dictionary<string, string>
 		{
-			{ "encrypt", "encrypt" },
+			{ "encrypto", "encrypto" },
 			{ "decrypt", "decrypt" }
 		};
 
 		private const string keyIVFile = "secret_key";
-		private const string keySeparate = "/";
+		private const int keyLength = 256;
 
 		/// <summary>
 		/// Entry Point
@@ -28,9 +28,8 @@ namespace encryptFile
 		/// <param name="args"></param>
 		private static void Main(string[] args)
 		{
-
-			if (!Program.checkArgs(args))
-				return;
+			//Check arguments
+			if (!CheckArgs(args)) return;
 
 			string argBehavior = args[0];
 			string argInputFile = args[1];
@@ -39,26 +38,26 @@ namespace encryptFile
 
 			try
 			{
-				//Encrypt
-				if (argBehavior == argConst["encrypt"])
+				//Encrypto
+				if (argBehavior == argConst["encrypto"])
 				{
-					//Check before encrypt
-					if (!checkBeforeEncrypt(argInputFile, argOutputFIle)) return;
-					//Run encrypt
-					(key, IV) = runEncrypt(argInputFile, argOutputFIle);
+					//Check before encrypto
+					if (!CheckBeforeEncrypto(argInputFile, argOutputFIle)) return;
+					//Run encrypto
+					(key, IV) = WriteEncryptoFile(argInputFile, argOutputFIle);
 					//Save secret key and IV
-					outKeyIV(keyIVFile, key, IV);
+					WriteKeyIV(keyIVFile, key, IV);
 				}
 
 				//Decrypt
 				if (argBehavior == argConst["decrypt"])
                 {
 					//Check before decrypt
-					if (!checkBeforeEncrypt(argInputFile, argOutputFIle)) return;
+					if (!CheckBeforeDecrypt(argInputFile, argOutputFIle)) return;
 					//Read secret key and IV
-					(key, IV) = inputKeyIV(keyIVFile);
+					(key, IV) = ReadKeyIV(keyIVFile);
 					//Decrypt data and save data to file
-					runDecrypt(argInputFile, argOutputFIle, key, IV);
+					WriteDecryptFile(argInputFile, argOutputFIle, key, IV);
 				}
 
 			}
@@ -74,17 +73,17 @@ namespace encryptFile
         /// </summary>
         /// <param name="args"></param>
         /// <returns></returns>
-		private static bool checkArgs(string[] args)
+		private static bool CheckArgs(string[] args)
 		{
 			if (args.Length != 3)
             {
-				Console.WriteLine("Arguments shoud be [`encrypt` or `decrypt'] [input] [output].");
+				Console.WriteLine("Arguments shoud be [`encrypto` or `decrypt'] [input] [output].");
 				return false;
 			}
 
 			if (!argConst.ContainsValue(args[0]))
             {
-				Console.WriteLine("Error: First argument must be `encrypt` or `decrypt.'");
+				Console.WriteLine("Error: First argument must be `encrypto` or `decrypt.'");
 				return false;
 			}
 
@@ -92,12 +91,12 @@ namespace encryptFile
 		}
 
 		/// <summary>
-        /// Check before encrypt
-        /// </summary>
-        /// <param name="inputFIle"></param>
-        /// <param name="outputFile"></param>
-        /// <returns></returns>
-		private static bool checkBeforeEncrypt(string inputFIle, string outputFile)
+		/// Check before encrypto
+		/// </summary>
+		/// <param name="inputFIle"></param>
+		/// <param name="outputFile"></param>
+		/// <returns></returns>
+		private static bool CheckBeforeEncrypto(string inputFIle, string outputFile)
 		{
             if (!File.Exists(inputFIle))
             {
@@ -115,37 +114,32 @@ namespace encryptFile
 		}
 
 		/// <summary>
-        /// Encrypt data
-        /// </summary>
-        /// <param name="inputFile"></param>
-        /// <param name="outputFile"></param>
-        /// <returns></returns>
-		private static (byte[], byte[]) runEncrypt(string inputFile, string outputFile)
+		/// Write encrypted data
+		/// </summary>
+		/// <param name="inputFile"></param>
+		/// <param name="outputFile"></param>
+		/// <returns></returns>
+		private static (byte[], byte[]) WriteEncryptoFile(string inputFile, string outputFile)
 		{
 			byte[] key, IV;
 
-			using (Rijndael rijndael = Rijndael.Create())
+			using (Aes aes = Aes.Create())
 			{
-				key = rijndael.Key;
-				IV = rijndael.IV;
+				aes.KeySize = keyLength;
+				key = aes.Key;
+				IV = aes.IV;
 
-				ICryptoTransform transform = rijndael.CreateEncryptor(key, IV);
+				ICryptoTransform transform = aes.CreateEncryptor(key, IV);
 
-				using (FileStream fileStream = new FileStream(outputFile, FileMode.CreateNew))
+				using (FileStream outputStream = new FileStream(outputFile, FileMode.CreateNew))
+				using (CryptoStream cryptoStream = new CryptoStream(outputStream, transform, CryptoStreamMode.Write))
+				using (BinaryWriter binaryWriter = new BinaryWriter(cryptoStream))
+				using (FileStream inputStream = new FileStream(inputFile, FileMode.Open, FileAccess.Read))
 				{
-					using (CryptoStream cryptoStream = new CryptoStream(fileStream, transform, CryptoStreamMode.Write))
-					{
-						using (BinaryWriter binaryWriter = new BinaryWriter(cryptoStream))
-						{
-							using (FileStream fileStream2 = new FileStream(inputFile, FileMode.Open, FileAccess.Read))
-							{
-								//write encrypted file
-								byte[] array = new byte[fileStream2.Length];
-								fileStream2.Read(array, 0, array.Length);
-								binaryWriter.Write(array);
-							}
-						}
-					}
+					//write encrypted file
+					byte[] array = new byte[inputStream.Length];
+					inputStream.Read(array, 0, array.Length);
+					binaryWriter.Write(array);
 				}
 			}
 			return (key, IV);
@@ -157,15 +151,20 @@ namespace encryptFile
         /// <param name="outputFile"></param>
         /// <param name="key"></param>
         /// <param name="IV"></param>
-		private static void outKeyIV(string outputFile, byte[] key, byte[] IV)
+		private static void WriteKeyIV(string outputFile, byte[] key, byte[] IV)
 		{
+			//delete secret key file when it already exists
+			if (File.Exists(outputFile))
+			{
+				File.Delete(outputFile);
+				Console.WriteLine($"Warning: A secret key({keyIVFile}) already exists and the file has deleted.");
+			}
+
 			using (FileStream fileStream = new FileStream(outputFile, FileMode.Create))
 			{
-				foreach (byte value in key)
-					fileStream.WriteByte(value);
 
-				foreach (byte value2 in IV)
-					fileStream.WriteByte(value2);
+				fileStream.Write(key);
+				fileStream.Write(IV);
 
 				fileStream.Close();
 			}
@@ -177,7 +176,7 @@ namespace encryptFile
         /// <param name="inputFIle"></param>
         /// <param name="outputFile"></param>
         /// <returns></returns>
-		private static bool checkBeforeDecrypt(string inputFIle, string outputFile)
+		private static bool CheckBeforeDecrypt(string inputFIle, string outputFile)
 		{
 
             if (!File.Exists(inputFIle)){
@@ -206,7 +205,7 @@ namespace encryptFile
         /// </summary>
         /// <param name="inputFIle"></param>
         /// <returns></returns>
-		private static (byte[], byte[]) inputKeyIV(string inputFIle)
+		private static (byte[], byte[]) ReadKeyIV(string inputFIle)
 		{
 			byte[] key = new byte[32];
 			byte[] IV = new byte[16];
@@ -231,46 +230,29 @@ namespace encryptFile
         /// <param name="outputFile"></param>
         /// <param name="key"></param>
         /// <param name="IV"></param>
-		private static void runDecrypt(string inputFile, string outputFile, byte[] key, byte[] IV)
+		private static void WriteDecryptFile(string inputFile, string outputFile, byte[] key, byte[] IV)
 		{
-			using (Rijndael rijndael = Rijndael.Create())
+			using (Aes aes = Aes.Create())
 			{
-				rijndael.Key = key;
-				rijndael.IV = IV;
+				aes.KeySize = keyLength;
+				aes.Key = key;
+				aes.IV = IV;
 
-				ICryptoTransform transform = rijndael.CreateDecryptor(key, IV);
+				ICryptoTransform transform = aes.CreateDecryptor(key, IV);
 
-				using (FileStream fileStream = new FileStream(inputFile, FileMode.Open))
+				using (FileStream   fileStream   = new FileStream(inputFile, FileMode.Open))
+				using (CryptoStream cryptoStream = new CryptoStream(fileStream, transform, CryptoStreamMode.Read))
+				using (MemoryStream memory       = new MemoryStream())
+				using (BinaryWriter binaryWriter = new BinaryWriter(new FileStream(outputFile, FileMode.Create)))
 				{
-					using (CryptoStream cryptoStream = new CryptoStream(fileStream, transform, CryptoStreamMode.Read))
-					{
-						using (BinaryReader binaryReader = new BinaryReader(cryptoStream))
-						{
-							//CryptStream does not have seek property
-							byte[] content = new byte[0];
-							try
-							{
-								while(true)
-								{
-									Array.Resize(ref content, content.Length + 1);
-									content[content.Length - 1] = binaryReader.ReadByte();
-								}
-							}
-							catch (EndOfStreamException ex)
-							{
-								//delete last element
-								Array.Resize(ref content, content.Length - 1);
-							}
 
-							//write decrypted data to file
-							using (BinaryWriter binaryWriter = new BinaryWriter(new FileStream(outputFile, FileMode.Create)))
-							{
-								foreach (byte value in content)
-									binaryWriter.Write(value);
-							}
+					//Read decrypted data into memory
+					cryptoStream.CopyTo(memory);
+					byte[] decryptBytes = memory.ToArray();
 
-						}
-					}
+                    //write decrypted data to file
+                    binaryWriter.Write(decryptBytes);
+
 				}
 			}
 		}
