@@ -15,7 +15,7 @@ namespace encryptor
         /// </summary>
 		private static readonly Dictionary<string, string> argConst = new Dictionary<string, string>
 		{
-			{ "encrypto", "encrypto" },
+			{ "encrypt", "encrypt" },
 			{ "decrypt", "decrypt" }
 		};
 
@@ -38,13 +38,13 @@ namespace encryptor
 
 			try
 			{
-				//Encrypto
-				if (argBehavior == argConst["encrypto"])
+				//encrypt
+				if (argBehavior == argConst["encrypt"])
 				{
-					//Check before encrypto
-					if (!CheckBeforeEncrypto(argInputFile, argOutputFIle)) return;
-					//Run encrypto
-					(key, IV) = WriteEncryptoFile(argInputFile, argOutputFIle);
+					//Check before encrypt
+					if (!CheckBeforeEncrypt(argInputFile, argOutputFIle)) return;
+					//Run encrypt
+					(key, IV) = WriteEncryptFile(argInputFile, argOutputFIle);
 					//Save secret key and IV
 					WriteKeyIV(keyIVFile, key, IV);
 				}
@@ -77,13 +77,13 @@ namespace encryptor
 		{
 			if (args.Length != 3)
             {
-				Console.WriteLine("Arguments shoud be [`encrypto` or `decrypt'] [input] [output].");
+				Console.WriteLine("Arguments shoud be [`encrypt` or `decrypt'] [input] [output].");
 				return false;
 			}
 
 			if (!argConst.ContainsValue(args[0]))
             {
-				Console.WriteLine("Error: First argument must be `encrypto` or `decrypt.'");
+				Console.WriteLine("Error: First argument must be `encrypt` or `decrypt.'");
 				return false;
 			}
 
@@ -91,12 +91,12 @@ namespace encryptor
 		}
 
 		/// <summary>
-		/// Check before encrypto
+		/// Check before encrypt
 		/// </summary>
 		/// <param name="inputFIle"></param>
 		/// <param name="outputFile"></param>
 		/// <returns></returns>
-		private static bool CheckBeforeEncrypto(string inputFIle, string outputFile)
+		private static bool CheckBeforeEncrypt(string inputFIle, string outputFile)
 		{
             if (!File.Exists(inputFIle))
             {
@@ -119,7 +119,7 @@ namespace encryptor
 		/// <param name="inputFile"></param>
 		/// <param name="outputFile"></param>
 		/// <returns></returns>
-		private static (byte[], byte[]) WriteEncryptoFile(string inputFile, string outputFile)
+		private static (byte[], byte[]) WriteEncryptFile(string inputFile, string outputFile)
 		{
 			byte[] key, IV;
 
