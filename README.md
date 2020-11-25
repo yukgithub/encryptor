@@ -21,7 +21,7 @@ $ dotnet encryptor.dll decrypt [input_file_name] [output_file_name]
 
 ***********************************
 
-##開発環境
+## 開発環境
 
 - C# 9.0
 - .NET 5.0
